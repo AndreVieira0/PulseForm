@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  createdAt DateTime @default(now())
+  
+  forms     Form[]
+}
+
+model Form {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  userId      String
+  
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  questions   Question[]
+  responses   Response[]
+}
+
+model Question {
+  id         String   @id @default(cuid())
+  text       String
+  type       String   // "TEXT", "MULTIPLE_CHOICE", "SCALE"
+  order      Int
+  isRequired Boolean  @default(false)
+  formId     String
+  
+  form       Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+  options    Option[]
+  responseItems ResponseItem[]
+}
+
+model Option {
+  id         String   @id @default(cuid())
+  text       String
+  questionId String
+  
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+model Response {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  ipAddress String?
+  formId    String
+  
+  form      Form           @relation(fields: [formId], references: [id], onDelete: Cascade)
+  items     ResponseItem[]
+}
+
+model ResponseItem {
+  id         String   @id @default(cuid())
+  value      String   // Can store text, option ID, or scale number as string
+  responseId String
+  questionId String
+  
+  response   Response @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
