@@ -1,6 +1,28 @@
+"use client";
+
 import Link from "next/link";
+import { registerUser } from "@/actions/auth";
+import { useState } from "react";
 
 export default function RegisterPage() {
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    const formData = new FormData(event.currentTarget);
+    const result = await registerUser(formData);
+
+    if (result?.error) {
+      setError(result.error);
+      setLoading(false);
+    }
+    // Se der sucesso, a Server Action fará o redirect automaticamente
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-md bg-white rounded-xl shadow-md p-8">
@@ -8,12 +30,19 @@ export default function RegisterPage() {
           Criar Conta
         </h2>
         
-        <form className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {error && (
+            <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm text-center">
+              {error}
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Nome
             </label>
             <input 
+              name="name"
               type="text" 
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -26,6 +55,7 @@ export default function RegisterPage() {
               E-mail
             </label>
             <input 
+              name="email"
               type="email" 
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -38,6 +68,7 @@ export default function RegisterPage() {
               Senha
             </label>
             <input 
+              name="password"
               type="password" 
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
@@ -47,9 +78,10 @@ export default function RegisterPage() {
 
           <button 
             type="submit"
-            className="w-full bg-blue-600 text-white font-medium py-3 rounded-lg hover:bg-blue-700 transition-colors"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white font-medium py-3 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
           >
-            Cadastrar
+            {loading ? "Cadastrando..." : "Cadastrar"}
           </button>
         </form>
 
