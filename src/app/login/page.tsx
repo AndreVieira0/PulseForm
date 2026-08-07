@@ -4,16 +4,15 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import toast from "react-hot-toast";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
-    setError(null);
 
     const formData = new FormData(event.currentTarget);
     const email = formData.get("email") as string;
@@ -26,9 +25,10 @@ export default function LoginPage() {
     });
 
     if (result?.error) {
-      setError("E-mail ou senha incorretos.");
+      toast.error("E-mail ou senha incorretos.");
       setLoading(false);
     } else {
+      toast.success("Login realizado com sucesso!");
       router.push("/dashboard");
       router.refresh();
     }
@@ -42,12 +42,6 @@ export default function LoginPage() {
         </h2>
         
         <form onSubmit={handleSubmit} className="space-y-6">
-          {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm text-center">
-              {error}
-            </div>
-          )}
-
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               E-mail

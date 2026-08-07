@@ -3,24 +3,27 @@
 import Link from "next/link";
 import { registerUser } from "@/actions/auth";
 import { useState } from "react";
+import toast from "react-hot-toast";
+import { useRouter } from "next/navigation";
 
 export default function RegisterPage() {
-  const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
-    setError(null);
 
     const formData = new FormData(event.currentTarget);
     const result = await registerUser(formData);
 
     if (result?.error) {
-      setError(result.error);
+      toast.error(result.error);
       setLoading(false);
+    } else if (result?.success) {
+      toast.success("Conta criada com sucesso! Faça login para continuar.");
+      router.push("/login");
     }
-    // Se der sucesso, a Server Action fará o redirect automaticamente
   }
 
   return (
@@ -31,12 +34,6 @@ export default function RegisterPage() {
         </h2>
         
         <form onSubmit={handleSubmit} className="space-y-6">
-          {error && (
-            <div className="bg-red-50 text-red-600 p-3 rounded-lg text-sm text-center">
-              {error}
-            </div>
-          )}
-
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Nome
@@ -72,7 +69,7 @@ export default function RegisterPage() {
               type="password" 
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-              placeholder="••••••••"
+              placeholder="Mínimo de 8 digitos"
             />
           </div>
 
