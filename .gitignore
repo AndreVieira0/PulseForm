@@ -48,3 +48,11 @@ next-env.d.ts
 # Prisma SQLite database
 *.db
 *.db-journal
+
+# AI Agent & IDE configs
+.agents/
+.claude/
+.windsurf/
+.gemini/
+.vscode/
+.idea/
