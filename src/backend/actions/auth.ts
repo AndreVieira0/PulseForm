@@ -1,6 +1,6 @@
 "use server";
 
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/backend/db/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 
@@ -24,8 +24,7 @@ export async function registerUser(formData: FormData) {
   const parsed = registerSchema.safeParse({ name, email, password });
   
   if (!parsed.success) {
-    // Retorna a primeira mensagem de erro encontrada na validação
-    return { error: parsed.error.errors[0].message };
+    return { error: parsed.error.issues[0].message };
   }
 
   // Verifica se o e-mail já existe no banco
