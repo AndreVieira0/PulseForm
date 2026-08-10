@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/backend/db/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret: process.env.AUTH_SECRET || "pulseform-secret-key-desenvolvimento-123456",
   session: {
     strategy: "jwt",
   },
