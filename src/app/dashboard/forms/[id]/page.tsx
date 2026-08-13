@@ -1,7 +1,8 @@
 import { auth } from "@/backend/auth";
 import { prisma } from "@/backend/db/prisma";
-import { redirect } from "next/navigation";
+import { QuestionBuilder } from "@/components/QuestionBuilder";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 interface FormDetailPageProps {
   params: Promise<{
@@ -19,14 +20,11 @@ export default async function FormDetailPage({ params }: FormDetailPageProps) {
   const { id } = await params;
 
   const form = await prisma.form.findUnique({
-    where: {
-      id: id,
-    },
+    where: { id },
     include: {
       questions: {
-        orderBy: {
-          order: "asc",
-        },
+        orderBy: { order: "asc" },
+        include: { options: true },
       },
     },
   });
@@ -54,18 +52,7 @@ export default async function FormDetailPage({ params }: FormDetailPageProps) {
         </div>
 
         <div className="border-t pt-6">
-          <h2 className="text-xl font-semibold mb-4 text-gray-800">Perguntas do Formulário</h2>
-          {form.questions.length === 0 ? (
-            <p className="text-gray-500 italic">Nenhuma pergunta adicionada ainda.</p>
-          ) : (
-            <ul className="space-y-4">
-              {form.questions.map((q) => (
-                <li key={q.id} className="p-4 border rounded bg-gray-50">
-                  <span className="font-medium text-gray-900">{q.text}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+          <QuestionBuilder formId={form.id} questions={form.questions} />
         </div>
       </div>
     </div>
