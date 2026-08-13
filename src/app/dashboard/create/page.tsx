@@ -1,56 +1,13 @@
 import { auth } from "@/backend/auth";
-import { prisma } from "@/backend/db/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { createFormAction } from "@/actions/form-actions";
 
 export default async function CreateFormPage() {
-  // 1. Verifica se o usuário está logado
   const session = await auth();
 
   if (!session?.user?.id) {
     redirect("/login");
-  }
-
-  // 2. Server Action: Função que roda no SERVIDOR quando o formulário for submetido
-  async function createForm(formData: FormData) {
-    "use server";
-
-    const userId = session?.user?.id;
-    if (!userId) {
-      throw new Error("Usuário não autenticado");
-    }
-
-    const title = formData.get("title") as string;
-    const description = formData.get("description") as string;
-
-    if (!title || title.trim() === "") {
-      return;
-    }
-
-    // Busca ou cria o usuário no banco se a sessão atual não existir no banco novo
-    let dbUser = await prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!dbUser && session.user?.email) {
-      dbUser = await prisma.user.findUnique({
-        where: { email: session.user.email },
-      });
-    }
-
-    if (!dbUser) {
-      throw new Error("Usuário não encontrado no banco de dados. Por favor, faça login novamente.");
-    }
-
-    const newForm = await prisma.form.create({
-      data: {
-        title: title.trim(),
-        description: description?.trim() || null,
-        userId: dbUser.id,
-      },
-    });
-
-    redirect(`/dashboard/forms/${newForm.id}`);
   }
 
   return (
@@ -60,7 +17,7 @@ export default async function CreateFormPage() {
           Criar Novo Formulário
         </h1>
 
-        <form action={createForm} className="space-y-4">
+        <form action={createFormAction} className="space-y-4">
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
               Título do Formulário *

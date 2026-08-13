@@ -1,7 +1,8 @@
-import { auth, signOut } from "@/backend/auth";
+import { auth } from "@/backend/auth";
 import { prisma } from "@/backend/db/prisma";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Header } from "@/components/Header";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -22,31 +23,8 @@ export default async function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Cabeçalho da página */}
-      <header className="bg-white border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-blue-600">PulseForm</h1>
-          <div className="flex items-center space-x-4">
-            <span className="text-sm text-gray-700">
-              Olá, <strong>{session.user.name || session.user.email}</strong>
-            </span>
-
-            <form
-              action={async () => {
-                "use server";
-                await signOut({ redirectTo: "/login" });
-              }}
-            >
-              <button
-                type="submit"
-                className="text-sm text-red-600 hover:text-red-800 font-medium transition-colors"
-              >
-                Sair
-              </button>
-            </form>
-          </div>
-        </div>
-      </header>
+      {/* Cabeçalho da página reutilizável */}
+      <Header userName={session.user.name} userEmail={session.user.email} />
 
       {/* Container: Lista de Formulários */}
       <main className="max-w-7xl mx-auto px-4 py-8">
