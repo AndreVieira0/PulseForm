@@ -1,7 +1,7 @@
-import { auth } from "@/backend/auth";
+import { auth } from "@/server/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { createFormAction } from "@/actions/form-actions";
+import { createFormAction } from "@/server/actions/forms";
 
 export default async function CreateFormPage() {
   const session = await auth();

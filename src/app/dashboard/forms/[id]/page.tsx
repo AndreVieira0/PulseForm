@@ -1,4 +1,4 @@
-import { auth } from "@/backend/auth";
+import { auth } from "@/server/auth";
 import { prisma } from "@/backend/db/prisma";
 import { QuestionBuilder } from "@/components/QuestionBuilder";
 import Link from "next/link";
