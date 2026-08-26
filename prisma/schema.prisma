@@ -40,6 +40,8 @@ model Question {
   form       Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
   options    Option[]
   responseItems ResponseItem[]
+
+  @@unique([formId, order])
 }
 
 model Option {
@@ -67,5 +69,5 @@ model ResponseItem {
   questionId String
   
   response   Response @relation(fields: [responseId], references: [id], onDelete: Cascade)
-  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
 }

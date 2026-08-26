@@ -1,4 +1,4 @@
-import { signOut } from "@/backend/auth";
+import { signOut } from "@/server/auth";
 
 interface HeaderProps {
   userName?: string | null;

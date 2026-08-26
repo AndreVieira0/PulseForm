@@ -1,7 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createForm, addQuestion, deleteQuestion, updateQuestion } from "@/server/forms";
+
+
+import { createForm, addQuestion, deleteQuestion, updateQuestion, toggleForm } from "@/server/forms";
 import { auth } from "@/server/auth";
 
 export async function createFormAction(formData: FormData) {
@@ -57,4 +59,22 @@ export async function deleteQuestionAction(formData: FormData) {
   }
 
   return deleteQuestion(formId, questionId, session.user.id);
+}
+
+export async function toggleFormAction(formData: FormData): Promise<void> {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
+
+  const formId = String(formData.get("formId") ?? "");
+  if (!formId) {
+    throw new Error("Formulário inválido.");
+  }
+
+  const result = await toggleForm(formId);
+  if (result.error) {
+    throw new Error(result.error);
+  }
 }

@@ -2,11 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { auth } from "@/server/auth";
 import { prisma } from "@/backend/db/prisma";
 import { createFormSchema, createQuestionSchema, updateQuestionSchema } from "@/server/validators";
 
 const MAX_QUESTIONS = 20;
+const MAX_OPTION_LENGTH = 300;
+const MAX_RESPONSE_LENGTH = 5000;
 
 export async function getOwnedForm(formId: string, userId: string) {
   const form = await prisma.form.findUnique({
@@ -63,7 +66,8 @@ function getDynamicOptions(formData: FormData) {
       const indexB = Number(keyB.replace("option-", ""));
       return indexA - indexB;
     })
-    .map(([, value]) => String(value).trim());
+    .map(([, value]) => String(value).trim())
+    .filter(Boolean);
 }
 
 export async function addQuestion(formData: FormData) {
@@ -74,9 +78,9 @@ export async function addQuestion(formData: FormData) {
   }
 
   const parsed = createQuestionSchema.safeParse({
-    formId: formData.get("formId"),
-    text: formData.get("text"),
-    type: formData.get("type"),
+    formId: String(formData.get("formId") ?? ""),
+    text: String(formData.get("text") ?? ""),
+    type: String(formData.get("type") ?? ""),
     isRequired: formData.get("isRequired") === "on",
     options: getDynamicOptions(formData),
   });
@@ -100,6 +104,10 @@ export async function addQuestion(formData: FormData) {
   const finalOptions = type === "MULTIPLE_CHOICE"
     ? options.map((option) => option.trim()).filter(Boolean)
     : [];
+
+  if (finalOptions.some((option) => option.length > MAX_OPTION_LENGTH)) {
+    return { error: `Cada alternativa deve ter no máximo ${MAX_OPTION_LENGTH} caracteres.` };
+  }
 
   if (type === "MULTIPLE_CHOICE" && finalOptions.length < 2) {
     return { error: "Múltipla escolha exige pelo menos 2 opções." };
@@ -136,10 +144,10 @@ export async function updateQuestion(formData: FormData) {
   }
 
   const parsed = updateQuestionSchema.safeParse({
-    formId: formData.get("formId"),
-    questionId: formData.get("questionId"),
-    text: formData.get("text"),
-    type: formData.get("type"),
+    formId: String(formData.get("formId") ?? ""),
+    questionId: String(formData.get("questionId") ?? ""),
+    text: String(formData.get("text") ?? ""),
+    type: String(formData.get("type") ?? ""),
     isRequired: formData.get("isRequired") === "on",
     options: getDynamicOptions(formData),
   });
@@ -168,6 +176,10 @@ export async function updateQuestion(formData: FormData) {
   const finalOptions = type === "MULTIPLE_CHOICE"
     ? options.map((option) => option.trim()).filter(Boolean)
     : [];
+
+  if (finalOptions.some((option) => option.length > MAX_OPTION_LENGTH)) {
+    return { error: `Cada alternativa deve ter no máximo ${MAX_OPTION_LENGTH} caracteres.` };
+  }
 
   if (type === "MULTIPLE_CHOICE" && finalOptions.length < 2) {
     return { error: "Múltipla escolha exige pelo menos 2 opções." };
@@ -206,14 +218,103 @@ export async function deleteQuestion(formId: string, questionId: string, userId:
 
   const question = await prisma.question.findUnique({
     where: { id: questionId },
+    include: { _count: { select: { responseItems: true } } },
   });
 
   if (!question || question.formId !== formId) {
     return { error: "Pergunta não encontrada." };
   }
 
+  if (question._count.responseItems > 0) {
+    return { error: "Não é possível remover uma pergunta que já possui respostas." };
+  }
+
   await prisma.question.delete({ where: { id: questionId } });
 
   revalidatePath(`/dashboard/forms/${formId}`);
+  return { success: true };
+}
+
+export async function submitResponse(formId: string, formData: FormData) {
+  const form = await prisma.form.findUnique({
+    where: { id: formId },
+    include: {
+      questions: {
+        orderBy: { order: "asc" },
+        include: { options: true },
+      },
+    },
+  });
+
+  if (!form || !form.isActive) {
+    return { error: "Este formulário não está disponível." };
+  }
+
+  const items: { questionId: string; value: string }[] = [];
+
+  for (const question of form.questions) {
+    const rawValue = formData.get(`question-${question.id}`);
+    const value = typeof rawValue === "string" ? rawValue.trim() : "";
+
+    if (question.isRequired && !value) {
+      return { error: `Responda à pergunta obrigatória: ${question.text}` };
+    }
+
+    if (!value) {
+      continue;
+    }
+
+    if (question.type === "MULTIPLE_CHOICE") {
+      if (!question.options.some((option) => option.id === value)) {
+        return { error: "Uma das alternativas selecionadas é inválida." };
+      }
+    } else if (question.type === "SCALE") {
+      if (!/^[1-5]$/.test(value)) {
+        return { error: "A escala deve conter um valor entre 1 e 5." };
+      }
+    } else if (value.length > MAX_RESPONSE_LENGTH) {
+      return { error: `A resposta deve ter no máximo ${MAX_RESPONSE_LENGTH} caracteres.` };
+    }
+
+    items.push({ questionId: question.id, value });
+  }
+
+  const requestHeaders = await headers();
+  const forwardedFor = requestHeaders.get("x-forwarded-for");
+  const ipAddress = forwardedFor?.split(",")[0]?.trim() || requestHeaders.get("x-real-ip");
+
+  await prisma.response.create({
+    data: {
+      formId,
+      ipAddress: ipAddress || null,
+      items: { create: items },
+    },
+  });
+
+  return { success: true };
+}
+
+export async function toggleForm(formId: string) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
+
+  const form = await prisma.form.findFirst({
+    where: { id: formId, userId: session.user.id },
+  });
+
+  if (!form) {
+    return { error: "Formulário não encontrado." };
+  }
+
+  await prisma.form.update({
+    where: { id: formId },
+    data: { isActive: !form.isActive },
+  });
+
+  revalidatePath(`/dashboard/forms/${formId}`);
+  revalidatePath(`/forms/${formId}`);
   return { success: true };
 }
