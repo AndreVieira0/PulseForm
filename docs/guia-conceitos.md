@@ -21,7 +21,7 @@ Na linguagem JavaScript/TypeScript, os arquivos disponibilizam código para outr
 * **Sintaxe de Importação:** Usa-se chaves `{}` para escolher exatamente quais itens pegar.
 * **Exemplo:**
   ```tsx
-  import { auth, signOut } from "@/backend/auth";
+  import { auth, signOut } from "@/server/auth";
   import { redirect } from "next/navigation";
   ```
 
