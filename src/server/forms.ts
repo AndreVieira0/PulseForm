@@ -2,10 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { auth } from "@/server/auth";
 import { prisma } from "@/backend/db/prisma";
 import { createFormSchema, createQuestionSchema, updateQuestionSchema } from "@/server/validators";
+import { checkRateLimit, getClientIp, normalizeRateLimitValue, RATE_LIMITS } from "@/server/security";
 
 const MAX_QUESTIONS = 20;
 const MAX_OPTION_LENGTH = 300;
@@ -279,14 +279,21 @@ export async function submitResponse(formId: string, formData: FormData) {
     items.push({ questionId: question.id, value });
   }
 
-  const requestHeaders = await headers();
-  const forwardedFor = requestHeaders.get("x-forwarded-for");
-  const ipAddress = forwardedFor?.split(",")[0]?.trim() || requestHeaders.get("x-real-ip");
+  const ipAddress = await getClientIp();
+  const submissionRateLimit = await checkRateLimit(
+    `submission:${normalizeRateLimitValue(formId)}:${normalizeRateLimitValue(ipAddress)}`,
+    RATE_LIMITS.publicSubmission.limit,
+    RATE_LIMITS.publicSubmission.windowMs
+  );
+
+  if (!submissionRateLimit.success) {
+    return { error: "Muitas respostas enviadas em pouco tempo. Tente novamente mais tarde." };
+  }
 
   await prisma.response.create({
     data: {
       formId,
-      ipAddress: ipAddress || null,
+      ipAddress: ipAddress === "unknown" ? null : ipAddress,
       items: { create: items },
     },
   });

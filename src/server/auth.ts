@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/backend/db/prisma";
+import { checkRateLimit, getClientIp, normalizeRateLimitValue, RATE_LIMITS } from "@/server/security";
 
 const authSecret = process.env.AUTH_SECRET ??
   (process.env.NODE_ENV === "production" ? undefined : "pulseform-dev-secret-change-me");
@@ -30,9 +31,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           return null;
         }
 
+        const email = String(credentials.email).trim().toLowerCase();
+        const clientIp = await getClientIp();
+        const ipRateLimit = await checkRateLimit(
+          `login:ip:${normalizeRateLimitValue(clientIp)}`,
+          RATE_LIMITS.login.limit,
+          RATE_LIMITS.login.windowMs
+        );
+        const emailRateLimit = await checkRateLimit(
+          `login:${normalizeRateLimitValue(email)}`,
+          RATE_LIMITS.login.limit,
+          RATE_LIMITS.login.windowMs
+        );
+
+        if (!ipRateLimit.success || !emailRateLimit.success) {
+          return null;
+        }
+
         const user = await prisma.user.findUnique({
           where: {
-            email: String(credentials.email).trim().toLowerCase(),
+            email,
           },
         });
 
