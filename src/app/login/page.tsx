@@ -5,6 +5,7 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import toast from "react-hot-toast";
+import { getLoginRateLimitStatus } from "@/server/actions/auth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,6 +18,13 @@ export default function LoginPage() {
     const formData = new FormData(event.currentTarget);
     const email = formData.get("email") as string;
     const password = formData.get("password") as string;
+    const rateLimitStatus = await getLoginRateLimitStatus(email);
+
+    if (rateLimitStatus.blocked) {
+      toast.error("Muitas tentativas de login. Tente novamente mais tarde.");
+      setLoading(false);
+      return;
+    }
 
     const result = await signIn("credentials", {
       email,

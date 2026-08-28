@@ -71,3 +71,10 @@ model ResponseItem {
   response   Response @relation(fields: [responseId], references: [id], onDelete: Cascade)
   question   Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
 }
+
+model RateLimit {
+  key       String   @id
+  count     Int
+  resetAt   DateTime
+  updatedAt DateTime @updatedAt
+}
