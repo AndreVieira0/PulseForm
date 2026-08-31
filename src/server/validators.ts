@@ -15,6 +15,12 @@ export const createFormSchema = z.object({
   description: z.string().trim().max(500, "A descrição deve ter no máximo 500 caracteres.").optional().or(z.literal("")),
 });
 
+export const updateFormSchema = z.object({
+  formId: z.string().min(1, "Formulário inválido."),
+  title: z.string().trim().min(1, "O título do formulário é obrigatório.").max(200, "O título deve ter no máximo 200 caracteres."),
+  description: z.string().trim().max(500, "A descrição deve ter no máximo 500 caracteres.").optional().or(z.literal("")),
+});
+
 export const questionTypeSchema = z.enum(["TEXT", "MULTIPLE_CHOICE", "SCALE"]);
 
 export const createQuestionSchema = z.object({

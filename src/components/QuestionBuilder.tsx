@@ -4,6 +4,7 @@ import {
   addQuestionAction,
   deleteQuestionAction,
   updateQuestionAction,
+  reorderQuestionAction,
 } from "@/server/actions/forms";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -163,6 +164,18 @@ export function QuestionBuilder({
     });
   }
 
+  function handleReorder(questionId: string, direction: "up" | "down") {
+    startTransition(async () => {
+      const result = await reorderQuestionAction(formId, questionId, direction);
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(direction === "up" ? "Pergunta movida para cima." : "Pergunta movida para baixo.");
+      router.refresh();
+    });
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex items-center justify-between">
@@ -186,8 +199,33 @@ export function QuestionBuilder({
               <div className="flex justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2 mb-1">
-                    <span className="text-xs font-medium text-gray-500">
-                      {index + 1}.
+                    <div className="inline-flex items-center gap-0.5 mr-1">
+                      <button
+                        type="button"
+                        disabled={isPending || index === 0}
+                        onClick={() => handleReorder(question.id, "up")}
+                        className="rounded p-1 text-gray-500 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-20 disabled:hover:bg-transparent transition"
+                        title="Mover para cima"
+                      >
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 15l7-7 7 7" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isPending || index === questions.length - 1}
+                        onClick={() => handleReorder(question.id, "down")}
+                        className="rounded p-1 text-gray-500 hover:bg-gray-200 hover:text-gray-800 disabled:opacity-20 disabled:hover:bg-transparent transition"
+                        title="Mover para baixo"
+                      >
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    <span className="text-xs font-semibold text-gray-600">
+                      #{index + 1}
                     </span>
                     <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
                       {TYPE_LABELS[question.type as QuestionType] ?? question.type}
@@ -198,7 +236,7 @@ export function QuestionBuilder({
                       </span>
                     )}
                   </div>
-                  <p className="font-medium text-gray-900">{question.text}</p>
+                  <p className="font-medium text-gray-900 mt-1">{question.text}</p>
                   {question.options.length > 0 && (
                     <ul className="mt-2 text-sm text-gray-600 list-disc list-inside">
                       {question.options.map((option) => (

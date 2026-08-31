@@ -5,12 +5,33 @@ const authSecret =
   process.env.AUTH_SECRET ??
   (process.env.NODE_ENV === "production"
     ? undefined
-    : "pulseform-dev-secret-change-me");
+    : "pulseform-secret-key-desenvolvimento-123456");
 
 export async function proxy(request: NextRequest) {
-  const token = authSecret
-    ? await getToken({ req: request, secret: authSecret })
-    : null;
+  const isProd = process.env.NODE_ENV === "production";
+  const cookieName = isProd
+    ? "__Secure-authjs.session-token"
+    : "authjs.session-token";
+
+  let token = null;
+
+  if (authSecret) {
+    // Verificar o formato padrão do NextAuth v5 (authjs.session-token)
+    token = await getToken({
+      req: request,
+      secret: authSecret,
+      cookieName,
+      salt: cookieName,
+    });
+
+    // Fallback para o formato do NextAuth v4 (next-auth.session-token)
+    if (!token) {
+      token = await getToken({
+        req: request,
+        secret: authSecret,
+      });
+    }
+  }
 
   if (!token) {
     const loginUrl = new URL("/login", request.url);
@@ -22,5 +43,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*"],
+  matcher: [
+    "/dashboard/:path*",
+  ],
 };
