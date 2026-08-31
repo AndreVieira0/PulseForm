@@ -1,9 +1,16 @@
 "use server";
 
 import { redirect } from "next/navigation";
-
-
-import { createForm, addQuestion, deleteQuestion, updateQuestion, toggleForm } from "@/server/forms";
+import {
+  createForm,
+  updateForm,
+  deleteForm,
+  addQuestion,
+  deleteQuestion,
+  updateQuestion,
+  reorderQuestion,
+  toggleForm,
+} from "@/server/forms";
 import { auth } from "@/server/auth";
 
 export async function createFormAction(formData: FormData) {
@@ -22,6 +29,36 @@ export async function createFormAction(formData: FormData) {
   if (result?.formId) {
     redirect(`/dashboard/forms/${result.formId}`);
   }
+}
+
+export async function updateFormAction(formData: FormData) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
+
+  return updateForm(formData);
+}
+
+export async function deleteFormAction(formData: FormData) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
+
+  const formId = String(formData.get("formId") ?? "");
+  if (!formId) {
+    return { error: "Formulário inválido." };
+  }
+
+  const result = await deleteForm(formId, session.user.id);
+  if (result?.error) {
+    return { error: result.error };
+  }
+
+  redirect("/dashboard");
 }
 
 export async function addQuestionAction(formData: FormData) {
@@ -59,6 +96,20 @@ export async function deleteQuestionAction(formData: FormData) {
   }
 
   return deleteQuestion(formId, questionId, session.user.id);
+}
+
+export async function reorderQuestionAction(
+  formId: string,
+  questionId: string,
+  direction: "up" | "down"
+) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
+
+  return reorderQuestion(formId, questionId, direction, session.user.id);
 }
 
 export async function toggleFormAction(formData: FormData): Promise<void> {

@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { auth } from "@/server/auth";
 import { prisma } from "@/backend/db/prisma";
-import { createFormSchema, createQuestionSchema, updateQuestionSchema } from "@/server/validators";
+import {
+  createFormSchema,
+  updateFormSchema,
+  createQuestionSchema,
+  updateQuestionSchema,
+} from "@/server/validators";
 import { checkRateLimit, getClientIp, normalizeRateLimitValue, RATE_LIMITS } from "@/server/security";
 
 const MAX_QUESTIONS = 20;
@@ -44,7 +49,7 @@ export async function createForm(formData: FormData) {
   const dbUser = await prisma.user.findUnique({ where: { id: userId } });
 
   if (!dbUser) {
-    throw new Error("Usuário não encontrado no banco de dados. Por favor, faça login novamente.");
+    return { error: "Sua sessão expirou ou o usuário não foi encontrado. Faça login novamente." };
   }
 
   const newForm = await prisma.form.create({
@@ -55,6 +60,7 @@ export async function createForm(formData: FormData) {
     },
   });
 
+  revalidatePath("/dashboard");
   return { success: true, formId: newForm.id };
 }
 
@@ -323,5 +329,109 @@ export async function toggleForm(formId: string) {
 
   revalidatePath(`/dashboard/forms/${formId}`);
   revalidatePath(`/forms/${formId}`);
+  return { success: true };
+}
+
+export async function updateForm(formData: FormData) {
+  const session = await auth();
+
+  if (!session?.user?.id) {
+    redirect("/login");
+  }
+
+  const parsed = updateFormSchema.safeParse({
+    formId: String(formData.get("formId") ?? ""),
+    title: formData.get("title"),
+    description: formData.get("description"),
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0].message };
+  }
+
+  const { formId, title, description } = parsed.data;
+  const form = await getOwnedForm(formId, session.user.id);
+
+  if (!form) {
+    return { error: "Formulário não encontrado." };
+  }
+
+  await prisma.form.update({
+    where: { id: formId },
+    data: {
+      title,
+      description: description || null,
+    },
+  });
+
+  revalidatePath(`/dashboard/forms/${formId}`);
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function deleteForm(formId: string, userId: string) {
+  const form = await getOwnedForm(formId, userId);
+
+  if (!form) {
+    return { error: "Formulário não encontrado." };
+  }
+
+  await prisma.form.delete({
+    where: { id: formId },
+  });
+
+  revalidatePath("/dashboard");
+  return { success: true };
+}
+
+export async function reorderQuestion(
+  formId: string,
+  questionId: string,
+  direction: "up" | "down",
+  userId: string
+) {
+  const form = await getOwnedForm(formId, userId);
+
+  if (!form) {
+    return { error: "Formulário não encontrado." };
+  }
+
+  const questions = await prisma.question.findMany({
+    where: { formId },
+    orderBy: { order: "asc" },
+  });
+
+  const currentIndex = questions.findIndex((q) => q.id === questionId);
+  if (currentIndex === -1) {
+    return { error: "Pergunta não encontrada." };
+  }
+
+  const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+  if (targetIndex < 0 || targetIndex >= questions.length) {
+    return { error: "Não é possível mover a pergunta nessa direção." };
+  }
+
+  const currentQ = questions[currentIndex];
+  const targetQ = questions[targetIndex];
+
+  await prisma.$transaction(async (tx) => {
+    // Usar valor temporário negativo para não colidir com o índice único @@unique([formId, order])
+    await tx.question.update({
+      where: { id: currentQ.id },
+      data: { order: -999 },
+    });
+
+    await tx.question.update({
+      where: { id: targetQ.id },
+      data: { order: currentQ.order },
+    });
+
+    await tx.question.update({
+      where: { id: currentQ.id },
+      data: { order: targetQ.order },
+    });
+  });
+
+  revalidatePath(`/dashboard/forms/${formId}`);
   return { success: true };
 }
